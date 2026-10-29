@@ -1,0 +1,215 @@
+{
+  "rules": {
+    "users": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "messages": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "broadcasts": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "groups": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "groupMessages": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "voiceNoteMedia": {
+      "$ownerId": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid === $ownerId"
+      }
+    },
+    "friendRequests": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "blackjackGames": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "poolGames": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "appUpdate": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "bannedUsers": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "bannedIps": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "bannedDevices": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "typing": {
+      "$receiverId": {
+        ".read": "auth != null && auth.uid === $receiverId",
+        "$senderId": {
+          ".write": "auth != null && auth.uid === $senderId",
+          ".validate": "newData.isNumber()"
+        }
+      }
+    },
+    "groupTyping": {
+      "$groupId": {
+        ".read": "auth != null && root.child('groups/' + $groupId + '/members/' + auth.uid).exists()",
+        "$senderId": {
+          ".write": "auth != null && auth.uid === $senderId && root.child('groups/' + $groupId + '/members/' + auth.uid).exists()",
+          ".validate": "newData.isNumber()"
+        }
+      }
+    },
+    "stories": {
+      "$owner": {
+        "$storyId": {
+          ".read": "auth != null && data.exists() && (auth.uid === $owner || (now < data.child('createdAt').val() + 86400000 && root.child('users/' + $owner + '/friends/' + auth.uid).exists() && !root.child('users/' + $owner + '/blocked/' + auth.uid).exists() && !root.child('users/' + auth.uid + '/blocked/' + $owner).exists() && (data.child('visibility').val() === 'friends' || (data.child('visibility').val() === 'custom' && !root.child('storySettings/' + $owner + '/excluded/' + auth.uid).exists()) || (data.child('visibility').val() === 'private' && data.child('audience/' + auth.uid).exists()))))",
+          ".write": "auth != null && auth.uid === $owner && (!newData.exists() || !data.exists())",
+          ".validate": "newData.hasChildren(['mediaType', 'mime', 'chunks', 'width', 'height', 'visibility', 'createdAt']) && (newData.child('visibility').val() !== 'private' || newData.child('audience').exists()) && newData.parent().parent().parent().child('storyMeta/' + $owner + '/lastPostAt').val() === now && newData.parent().parent().parent().child('storyMedia/' + $owner + '/' + $storyId + '/0').exists()",
+          "mediaType": {
+            ".validate": "newData.val() === 'image' || newData.val() === 'video'"
+          },
+          "width": {
+            ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 10000"
+          },
+          "height": {
+            ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 10000"
+          },
+          "duration": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 120"
+          },
+          "overlays": {
+            ".validate": "newData.isString() && newData.val().length <= 60000"
+          },
+          "visibility": {
+            ".validate": "newData.val() === 'friends' || newData.val() === 'custom' || newData.val() === 'private'"
+          },
+          "createdAt": {
+            ".validate": "newData.val() === now"
+          },
+          "audience": {
+            "$aud": {
+              ".validate": "newData.val() === true && root.child('users/' + $owner + '/friends/' + $aud).exists()"
+            }
+          },
+          "mime": {
+            ".validate": "newData.isString() && newData.val().matches(/^(image\\/(jpeg|png|webp)|video\\/(mp4|webm|quicktime))$/)"
+          },
+          "chunks": {
+            ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 40"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
+    },
+    "storyIndex": {
+      "$owner": {
+        ".read": "auth != null && (auth.uid === $owner || (root.child('users/' + $owner + '/friends/' + auth.uid).exists() && !root.child('users/' + $owner + '/blocked/' + auth.uid).exists() && !root.child('users/' + auth.uid + '/blocked/' + $owner).exists()))",
+        ".indexOn": [
+          "createdAt"
+        ],
+        "$storyId": {
+          ".write": "auth != null && auth.uid === $owner && (!newData.exists() || (!data.exists() && newData.parent().parent().parent().child('stories/' + $owner + '/' + $storyId + '/visibility').val() !== 'private'))",
+          ".validate": "newData.hasChildren(['createdAt']) && newData.child('createdAt').val() === newData.parent().parent().parent().child('stories/' + $owner + '/' + $storyId + '/createdAt').val()",
+          "createdAt": {
+            ".validate": "newData.isNumber()"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
+    },
+    "storyInbox": {
+      "$viewer": {
+        ".read": "auth != null && auth.uid === $viewer",
+        ".indexOn": [
+          "createdAt"
+        ],
+        "$storyId": {
+          ".write": "auth != null && ((newData.exists() && !data.exists() && newData.child('owner').val() === auth.uid && newData.parent().parent().parent().child('stories/' + auth.uid + '/' + $storyId + '/audience/' + $viewer).exists()) || (!newData.exists() && (auth.uid === $viewer || data.child('owner').val() === auth.uid)))",
+          ".validate": "newData.hasChildren(['owner', 'createdAt']) && newData.child('createdAt').val() === newData.parent().parent().parent().child('stories/' + newData.child('owner').val() + '/' + $storyId + '/createdAt').val()",
+          "owner": {
+            ".validate": "newData.isString()"
+          },
+          "createdAt": {
+            ".validate": "newData.isNumber()"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
+    },
+    "storyViews": {
+      "$owner": {
+        ".read": "auth != null && auth.uid === $owner",
+        "$storyId": {
+          ".write": "auth != null && auth.uid === $owner && !newData.exists()",
+          "$viewer": {
+            ".read": "auth != null && auth.uid === $viewer",
+            ".write": "auth != null && auth.uid === $viewer && auth.uid !== $owner && !data.exists() && newData.exists() && root.child('stories/' + $owner + '/' + $storyId).exists() && now < root.child('stories/' + $owner + '/' + $storyId + '/createdAt').val() + 86400000 && root.child('users/' + $owner + '/friends/' + auth.uid).exists() && !root.child('users/' + $owner + '/blocked/' + auth.uid).exists() && !root.child('users/' + auth.uid + '/blocked/' + $owner).exists() && (root.child('stories/' + $owner + '/' + $storyId + '/visibility').val() === 'friends' || (root.child('stories/' + $owner + '/' + $storyId + '/visibility').val() === 'custom' && !root.child('storySettings/' + $owner + '/excluded/' + auth.uid).exists()) || (root.child('stories/' + $owner + '/' + $storyId + '/visibility').val() === 'private' && root.child('stories/' + $owner + '/' + $storyId + '/audience/' + auth.uid).exists()))",
+            ".validate": "newData.val() === now"
+          }
+        }
+      }
+    },
+    "storySeen": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "$storyId": {
+          ".validate": "newData.val() === true"
+        }
+      }
+    },
+    "storySettings": {
+      "$owner": {
+        ".read": "auth != null && auth.uid === $owner",
+        ".write": "auth != null && auth.uid === $owner",
+        "excluded": {
+          "$uid": {
+            ".validate": "newData.val() === true"
+          }
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    "storyMeta": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "lastPostAt": {
+          ".write": "auth != null && auth.uid === $uid && newData.val() === now && (!data.exists() || data.val() < now - 1000)",
+          ".validate": "newData.isNumber()"
+        }
+      }
+    },
+    "storyMedia": {
+      "$owner": {
+        "$storyId": {
+          ".read": "auth != null && root.child('stories/' + $owner + '/' + $storyId).exists() && now < root.child('stories/' + $owner + '/' + $storyId + '/createdAt').val() + 86400000 && (auth.uid === $owner || (root.child('users/' + $owner + '/friends/' + auth.uid).exists() && !root.child('users/' + $owner + '/blocked/' + auth.uid).exists() && !root.child('users/' + auth.uid + '/blocked/' + $owner).exists() && (root.child('stories/' + $owner + '/' + $storyId + '/visibility').val() === 'friends' || (root.child('stories/' + $owner + '/' + $storyId + '/visibility').val() === 'custom' && !root.child('storySettings/' + $owner + '/excluded/' + auth.uid).exists()) || (root.child('stories/' + $owner + '/' + $storyId + '/visibility').val() === 'private' && root.child('stories/' + $owner + '/' + $storyId + '/audience/' + auth.uid).exists()))))",
+          ".write": "auth != null && auth.uid === $owner && (!newData.exists() || !root.child('stories/' + $owner + '/' + $storyId).exists())",
+          "$n": {
+            ".validate": "newData.isString() && newData.val().length <= 260000 && $n.matches(/^[0-9]+$/)"
+          }
+        }
+      }
+    }
+  }
+}
